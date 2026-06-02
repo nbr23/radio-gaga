@@ -52,3 +52,6 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
+# Local secrets / network config (copy from config.example.h)
+config.h
+
