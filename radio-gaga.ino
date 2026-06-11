@@ -183,6 +183,22 @@ void connectWiFi() {
   }
 }
 
+void reconnectWiFi() {
+  Serial.print("Reconnecting to WiFi");
+  WiFi.disconnect();
+  delay(100);
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  if (waitForWiFi(6000)) {
+    Serial.println();
+    Serial.print("Reconnected: ");
+    Serial.println(WiFi.localIP());
+    saveCachedAp();
+  } else {
+    Serial.println();
+    Serial.println("WiFi reconnect failed");
+  }
+}
+
 void enterDeepSleep() {
   digitalWrite(LED_PIN, LOW);
   if (WiFi.status() == WL_CONNECTED) {
@@ -265,7 +281,7 @@ void loop() {
   }
 
   if (WiFi.status() != WL_CONNECTED) {
-    connectWiFi();
+    reconnectWiFi();
     digitalWrite(LED_PIN, HIGH);
     checkOff();
     if (WiFi.status() == WL_CONNECTED) {
