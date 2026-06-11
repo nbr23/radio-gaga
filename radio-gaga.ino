@@ -16,6 +16,21 @@ int currentZone = -1;
 bool currentAm = false;
 int currentVolume = -1;
 
+constexpr int HTTP_FAILURE_THRESHOLD = 3;
+constexpr unsigned long HTTP_BACKOFF_MS = 5000;
+int httpFailures = 0;
+unsigned long lastHttpAttempt = 0;
+
+void recordHttpResult(bool ok) {
+  lastHttpAttempt = millis();
+  httpFailures = ok ? 0 : httpFailures + 1;
+}
+
+bool httpReady() {
+  if (httpFailures < HTTP_FAILURE_THRESHOLD) return true;
+  return millis() - lastHttpAttempt >= HTTP_BACKOFF_MS;
+}
+
 bool switchIsOff() {
   return digitalRead(AM_PIN) != LOW && digitalRead(FM_PIN) != LOW;
 }
@@ -39,7 +54,9 @@ bool postRoute(const char* route) {
   Serial.print(" → ");
   Serial.println(code);
   http.end();
-  return code >= 200 && code < 300;
+  bool ok = code >= 200 && code < 300;
+  recordHttpResult(ok);
+  return ok;
 }
 
 int readAdc(int pin) {
@@ -68,7 +85,9 @@ bool sendVolume(int level) {
   Serial.print(code);
   Serial.println(")");
   http.end();
-  return code >= 200 && code < 300;
+  bool ok = code >= 200 && code < 300;
+  recordHttpResult(ok);
+  return ok;
 }
 
 constexpr int zoneBoundary(int i) { return (i + 1) * 4095 / NUM_ZONES; }
@@ -307,7 +326,7 @@ void loop() {
 
   int zone = resolveZone(tuning);
   if (WiFi.status() == WL_CONNECTED) {
-    if (zone != currentZone || modeChanged) {
+    if ((zone != currentZone || modeChanged) && httpReady()) {
       Serial.print("Zone changed: ");
       Serial.print(zone);
       Serial.print(" (");
@@ -330,7 +349,7 @@ void loop() {
 #endif
 
     int volume = readVolume();
-    if (abs(volume - currentVolume) > 1) {
+    if (abs(volume - currentVolume) > 1 && httpReady()) {
       if (sendVolume(volume)) {
         currentVolume = volume;
       }
