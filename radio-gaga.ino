@@ -194,10 +194,10 @@ void enterDeepSleep() {
   Serial.flush();
 
   esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
-  rtc_gpio_pullup_en(GPIO_NUM_32);
-  rtc_gpio_pullup_en(GPIO_NUM_33);
-  rtc_gpio_pulldown_dis(GPIO_NUM_32);
-  rtc_gpio_pulldown_dis(GPIO_NUM_33);
+  rtc_gpio_pullup_en((gpio_num_t)AM_PIN);
+  rtc_gpio_pullup_en((gpio_num_t)FM_PIN);
+  rtc_gpio_pulldown_dis((gpio_num_t)AM_PIN);
+  rtc_gpio_pulldown_dis((gpio_num_t)FM_PIN);
 
   esp_sleep_enable_ext0_wakeup((gpio_num_t)AM_PIN, 0);
   esp_sleep_enable_ext1_wakeup(1ULL << FM_PIN, ESP_EXT1_WAKEUP_ALL_LOW);
