@@ -243,7 +243,7 @@ void setup() {
   }
 
   connectWiFi();
-  digitalWrite(LED_PIN, HIGH);
+  digitalWrite(LED_PIN, WiFi.status() == WL_CONNECTED ? HIGH : LOW);
 
   amActive = digitalRead(AM_PIN) == LOW;
   fmActive = digitalRead(FM_PIN) == LOW;
@@ -283,7 +283,7 @@ void loop() {
 
   if (WiFi.status() != WL_CONNECTED) {
     reconnectWiFi();
-    digitalWrite(LED_PIN, HIGH);
+    digitalWrite(LED_PIN, WiFi.status() == WL_CONNECTED ? HIGH : LOW);
     checkOff();
     if (WiFi.status() == WL_CONNECTED) {
       currentZone = -1;
