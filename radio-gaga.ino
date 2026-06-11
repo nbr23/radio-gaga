@@ -125,7 +125,7 @@ void beginWiFi() {
   IPAddress dns(STATIC_DNS);
   WiFi.persistent(false);
   WiFi.mode(WIFI_STA);
-  WiFi.setSleep(WIFI_PS_NONE);
+  WiFi.setSleep(WIFI_PS_MIN_MODEM);
   WiFi.config(ip, gw, sn, dns);
   loadCachedAp();
   if (hasCached) {
