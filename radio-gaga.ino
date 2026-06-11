@@ -77,13 +77,12 @@ int resolveZone(int tuning) {
   int zone = 0;
   for (int i = 0; i < NUM_ZONES - 1; i++) {
     int boundary = zoneBoundary(i);
-    if (currentZone <= i) {
-      if (tuning >= boundary + HYSTERESIS) zone = i + 1;
-      else break;
-    } else {
-      if (tuning >= boundary - HYSTERESIS) zone = i + 1;
-      else break;
-    }
+    int offset;
+    if (currentZone < 0) offset = 0;
+    else if (currentZone <= i) offset = HYSTERESIS;
+    else offset = -HYSTERESIS;
+    if (tuning >= boundary + offset) zone = i + 1;
+    else break;
   }
   return zone;
 }
