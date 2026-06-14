@@ -65,11 +65,11 @@ int readAdc(int pin) {
   return total / ADC_SAMPLES;
 }
 
-int readVolume() {
-  return constrain(map(readAdc(VOLUME_POT_PIN), 0, 4095, VOLUME_MIN, VOLUME_MAX), VOLUME_MIN, VOLUME_MAX);
+int mapVolume(int raw) {
+  return constrain(map(raw, 0, 4095, VOLUME_MIN, VOLUME_MAX), VOLUME_MIN, VOLUME_MAX);
 }
 
-bool sendVolume(int level) {
+bool sendVolume(int level, int raw) {
   HTTPClient http;
   char url[128];
   snprintf(url, sizeof(url), "%s%s", SPEAKER_API, VOLUME_ROUTE);
@@ -81,7 +81,9 @@ bool sendVolume(int level) {
   int code = http.POST(body);
   Serial.print("Volume → ");
   Serial.print(level);
-  Serial.print("% (");
+  Serial.print("% raw=");
+  Serial.print(raw);
+  Serial.print(" (");
   Serial.print(code);
   Serial.println(")");
   http.end();
@@ -277,8 +279,9 @@ void setup() {
     if (postRoute(zones[zone])) {
       currentZone = zone;
     }
-    int volume = readVolume();
-    if (sendVolume(volume)) {
+    int rawVolume = readAdc(VOLUME_POT_PIN);
+    int volume = mapVolume(rawVolume);
+    if (sendVolume(volume, rawVolume)) {
       currentVolume = volume;
     }
   }
@@ -331,7 +334,8 @@ void loop() {
       Serial.print(zone);
       Serial.print(" (");
       Serial.print(mode);
-      Serial.println(")");
+      Serial.print(") raw=");
+      Serial.println(tuning);
       digitalWrite(LED_PIN, LOW);
       if (postRoute(zones[zone])) {
         currentZone = zone;
@@ -348,9 +352,10 @@ void loop() {
     Serial.println(analogRead(VOLUME_POT_PIN));
 #endif
 
-    int volume = readVolume();
+    int rawVolume = readAdc(VOLUME_POT_PIN);
+    int volume = mapVolume(rawVolume);
     if (abs(volume - currentVolume) > 1 && httpReady()) {
-      if (sendVolume(volume)) {
+      if (sendVolume(volume, rawVolume)) {
         currentVolume = volume;
       }
       checkOff();
