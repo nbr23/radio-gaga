@@ -44,6 +44,12 @@
 #define STOP_ROUTE "/stop"      // POST: stop playback (sent before deep sleep)
 #define VOLUME_ROUTE "/volume"  // POST {"volume":N}
 #define HTTP_TIMEOUT 2000        // ms per request
+// Uncomment if the speaker stops playback when it stops hearing from this
+// device (so dead batteries don't leave it playing). The route is then POSTed
+// every KEEPALIVE_INTERVAL ms while a playlist is active; keep the interval
+// well under the speaker's timeout so a couple of lost requests are tolerated.
+// #define KEEPALIVE_ROUTE "/keepalive/radio"
+#define KEEPALIVE_INTERVAL 20000
 
 // --- Volume range sent to the speaker ---
 // The dial's full travel maps onto this range (the speaker's own volume scale).

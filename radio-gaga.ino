@@ -15,6 +15,7 @@ static bool hasCached = false;
 int currentZone = -1;
 bool currentAm = false;
 int currentVolume = -1;
+bool repostZone = false;
 
 constexpr int HTTP_FAILURE_THRESHOLD = 3;
 constexpr unsigned long HTTP_BACKOFF_MS = 5000;
@@ -58,6 +59,19 @@ bool postRoute(const char* route) {
   recordHttpResult(ok);
   return ok;
 }
+
+#ifdef KEEPALIVE_ROUTE
+unsigned long lastKeepalive = 0;
+
+void sendKeepalive() {
+  if (currentZone < 0 || repostZone || millis() - lastKeepalive < KEEPALIVE_INTERVAL || !httpReady()) return;
+  // A failed keepalive may mean the speaker already timed playback out, so have loop() re-post the zone.
+  // currentZone is left untouched: resetting it would drop resolveZone()'s hysteresis and could flip playlists.
+  if (postRoute(KEEPALIVE_ROUTE)) lastKeepalive = millis();
+  else repostZone = true;
+  checkOff();
+}
+#endif
 
 int readAdc(int pin) {
   long total = 0;
@@ -329,7 +343,7 @@ void loop() {
 
   int zone = resolveZone(tuning);
   if (WiFi.status() == WL_CONNECTED) {
-    if ((zone != currentZone || modeChanged) && httpReady()) {
+    if ((zone != currentZone || modeChanged || repostZone) && httpReady()) {
       Serial.print("Zone changed: ");
       Serial.print(zone);
       Serial.print(" (");
@@ -340,6 +354,7 @@ void loop() {
       if (postRoute(zones[zone])) {
         currentZone = zone;
         currentAm = amActive;
+        repostZone = false;
       }
       checkOff();
       digitalWrite(LED_PIN, HIGH);
@@ -360,6 +375,10 @@ void loop() {
       }
       checkOff();
     }
+
+#ifdef KEEPALIVE_ROUTE
+    sendKeepalive();
+#endif
   }
 
   delay(50);
