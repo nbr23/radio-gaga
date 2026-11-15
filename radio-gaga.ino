@@ -32,6 +32,21 @@ bool httpReady() {
   return millis() - lastHttpAttempt >= HTTP_BACKOFF_MS;
 }
 
+void logStamp() {
+  unsigned long ms = millis();
+  Serial.printf("[%lu.%03lu] ", ms / 1000, ms % 1000);
+}
+
+void logLine(const char* fmt, ...) {
+  char buf[192];
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(buf, sizeof(buf), fmt, args);
+  va_end(args);
+  logStamp();
+  Serial.println(buf);
+}
+
 bool switchIsOff() {
   return digitalRead(AM_PIN) != LOW && digitalRead(FM_PIN) != LOW;
 }
@@ -50,10 +65,7 @@ bool postRoute(const char* route) {
   http.begin(url);
   http.setTimeout(HTTP_TIMEOUT);
   int code = http.POST("");
-  Serial.print("POST ");
-  Serial.print(url);
-  Serial.print(" → ");
-  Serial.println(code);
+  logLine("POST %s → %d", url, code);
   http.end();
   bool ok = code >= 200 && code < 300;
   recordHttpResult(ok);
@@ -93,13 +105,7 @@ bool sendVolume(int level, int raw) {
   char body[32];
   snprintf(body, sizeof(body), "{\"volume\":%d}", level);
   int code = http.POST(body);
-  Serial.print("Volume → ");
-  Serial.print(level);
-  Serial.print("% raw=");
-  Serial.print(raw);
-  Serial.print(" (");
-  Serial.print(code);
-  Serial.println(")");
+  logLine("Volume → %d%% raw=%d (%d)", level, raw, code);
   http.end();
   bool ok = code >= 200 && code < 300;
   recordHttpResult(ok);
@@ -142,7 +148,7 @@ void saveCachedAp() {
   memcpy(cachedBssid, bssid, 6);
   cachedChannel = channel;
   hasCached = true;
-  Serial.println("Saved BSSID+channel to NVS");
+  logLine("Saved BSSID+channel to NVS");
 }
 
 void clearCachedAp() {
@@ -186,6 +192,7 @@ bool waitForWiFi(int maxMs) {
 
 void connectWiFi() {
   unsigned long t0 = millis();
+  logStamp();
   Serial.print("Connecting to WiFi");
   if (WiFi.status() != WL_CONNECTED && !wifiBegun) {
     beginWiFi();
@@ -194,7 +201,7 @@ void connectWiFi() {
   bool ok = waitForWiFi(fastTimeout);
   if (!ok && usedFastConnect) {
     Serial.println();
-    Serial.println("Fast connect failed, falling back to full scan");
+    logLine("Fast connect failed, falling back to full scan");
     clearCachedAp();
     WiFi.disconnect(true, true);
     delay(100);
@@ -205,31 +212,26 @@ void connectWiFi() {
   }
   Serial.println();
   if (ok) {
-    Serial.print("Connected in ");
-    Serial.print(millis() - t0);
-    Serial.print("ms: ");
-    Serial.print(WiFi.localIP());
-    Serial.print(" ch=");
-    Serial.println(WiFi.channel());
+    logLine("Connected in %lums: %s ch=%d", millis() - t0, WiFi.localIP().toString().c_str(), WiFi.channel());
     saveCachedAp();
   } else {
-    Serial.println("WiFi connection failed");
+    logLine("WiFi connection failed");
   }
 }
 
 void reconnectWiFi() {
+  logStamp();
   Serial.print("Reconnecting to WiFi");
   WiFi.disconnect();
   delay(100);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   if (waitForWiFi(6000)) {
     Serial.println();
-    Serial.print("Reconnected: ");
-    Serial.println(WiFi.localIP());
+    logLine("Reconnected: %s", WiFi.localIP().toString().c_str());
     saveCachedAp();
   } else {
     Serial.println();
-    Serial.println("WiFi reconnect failed");
+    logLine("WiFi reconnect failed");
   }
 }
 
@@ -240,7 +242,7 @@ void enterDeepSleep() {
   }
   WiFi.disconnect(true);
   WiFi.mode(WIFI_OFF);
-  Serial.println("Switch OFF — entering deep sleep");
+  logLine("Switch OFF — entering deep sleep");
   Serial.flush();
 
   esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
@@ -273,7 +275,7 @@ void setup() {
 
   esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
   if (cause == ESP_SLEEP_WAKEUP_EXT0 || cause == ESP_SLEEP_WAKEUP_EXT1) {
-    Serial.println("Woke from deep sleep");
+    logLine("Woke from deep sleep");
   }
 
   connectWiFi();
@@ -300,7 +302,7 @@ void setup() {
     }
   }
 
-  Serial.println("Radio started");
+  logLine("Radio started");
 }
 
 void loop() {
@@ -344,12 +346,7 @@ void loop() {
   int zone = resolveZone(tuning);
   if (WiFi.status() == WL_CONNECTED) {
     if ((zone != currentZone || modeChanged || repostZone) && httpReady()) {
-      Serial.print("Zone changed: ");
-      Serial.print(zone);
-      Serial.print(" (");
-      Serial.print(mode);
-      Serial.print(") raw=");
-      Serial.println(tuning);
+      logLine("Zone changed: %d (%s) raw=%d", zone, mode, tuning);
       digitalWrite(LED_PIN, LOW);
       if (postRoute(zones[zone])) {
         currentZone = zone;
@@ -361,10 +358,7 @@ void loop() {
     }
 
 #ifdef LOG_RAW_POTS
-    Serial.print("tuning=");
-    Serial.print(tuning);
-    Serial.print(" volume=");
-    Serial.println(analogRead(VOLUME_POT_PIN));
+    logLine("tuning=%d volume=%d", tuning, analogRead(VOLUME_POT_PIN));
 #endif
 
     int rawVolume = readAdc(VOLUME_POT_PIN);
